@@ -1,0 +1,143 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: datadog
+rules:
+- nonResourceURLs:
+  - "/version"  # Used to get apiserver version metadata
+  - "/healthz"  # Healthcheck
+  verbs: ["get"]
+- apiGroups: [""]
+  resources:
+    - "nodes"
+    - "namespaces"  #
+    - "events"      # Cluster events + kube_service cache invalidation
+    - "services"    # kube_service tag
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources:
+    - "configmaps"
+  resourceNames: ["datadog-leader-elector"]
+  verbs: ["get", "delete", "update"]
+- apiGroups: [""]
+  resources:
+    - "configmaps"
+  verbs: ["create"]
+---
+# You need to use that account for your dd-agent DaemonSet
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: datadog
+  namespace: backend
+automountServiceAccountToken: true
+---
+# Your admin user needs the same permissions to be able to grant them
+# Easiest way is to bind your user to the cluster-admin role
+# See https://cloud.google.com/container-engine/docs/role-based-access-control#setting_up_role-based_access_control
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: datadog
+subjects:
+- kind: ServiceAccount
+  name: datadog
+  namespace: backend
+roleRef:
+  kind: ClusterRole
+  name: datadog
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: datadog-agent-conf
+  namespace: backend
+  labels:
+    app: datadog-agent
+data:
+  kubernetes.yaml: |-
+    init_config:
+    instances:
+      - port: 4194
+        collect_events: true
+        collect_service_tags: true
+        service_tag_update_freq: 10
+        namespace_name_regexp: .*
+        node_labels_to_host_tags:
+          role: role
+---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: dd-agent
+  namespace: backend
+spec:
+  template:
+    metadata:
+      labels:
+        app: dd-agent
+      name: dd-agent
+    spec:
+      serviceAccountName: datadog
+      containers:
+      - image: datadog/dev-dd-agent:deploy
+        imagePullPolicy: IfNotPresent
+        name: dd-agent
+        ports:
+          - containerPort: 8125
+            name: dogstatsdport
+            protocol: UDP
+        env:
+          - name: API_KEY
+            value: %%PLACEHOLDER%% 
+          - name: KUBERNETES
+            value: "yes"
+          - name: SD_BACKEND
+            value: docker
+          - name: KUBERNETES_COLLECT_SERVICE_TAGS
+            value: "yes"
+          - name: KUBERNETES_KUBELET_HOST
+            valueFrom:
+              fieldRef:
+                 fieldPath: status.hostIP  # Kubernetes >= 1.7
+                 # or
+                 #fieldPath: spec.nodeName  # Kubernetes < 1.7
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+        volumeMounts:
+          - name: dockersocket
+            mountPath: /var/run/docker.sock
+          - name: procdir
+            mountPath: /host/proc
+            readOnly: true
+          - name: cgroups
+            mountPath: /host/sys/fs/cgroup
+            readOnly: true
+          - name: confd
+            mountPath: /conf.d
+            readOnly: true
+        #livenessProbe:
+        #  exec:
+        #    command:
+        #    - ./probe.sh
+        #  initialDelaySeconds: 15
+        #  periodSeconds: 5
+      volumes:
+        - hostPath:
+            path: /var/run/docker.sock
+          name: dockersocket
+        - hostPath:
+            path: /proc
+          name: procdir
+        - hostPath:
+            path: /sys/fs/cgroup
+          name: cgroups
+        - name: confd
+          configMap:
+            name: datadog-agent-conf

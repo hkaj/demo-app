@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: backend
+  labels:
+    app: postgres
+    component: db
+spec:
+  selector:
+    app: postgres
+    component: db
+  ports:
+  - protocol: TCP
+    port: 5432
+    targetPort: 5432
+    name: postgres
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: backend
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+      component: db
+  template:
+    metadata:
+      labels:
+        app: postgres
+        component: db
+      annotations:
+        service-discovery.datadoghq.com/postgres.check_names: '["postgres"]'
+        service-discovery.datadoghq.com/postgres.init_configs: '[{}]'
+        service-discovery.datadoghq.com/postgres.instances: '[{"host": "%%host%%", "port": "5432", "username": "datadog", "password": "datadog", "tags": ["%%tags%%"]}]'
+    spec:
+      terminationGracePeriodSeconds: 15
+      containers:
+      - name: postgres
+        image: postgres:9
+        ports:
+        - containerPort: 5432
+          protocol: TCP
+          name: postgres
+        env:
+        - name: POSTGRES_USER
+          value: foo
+        - name: POSTGRES_PASSWORD
+          value: bar
+        - name: MONITORING_USER
+          value: datadog
+        - name: MONITORING_PASSWORD
+          value: datadog
+        - name: POSTGRES_DB
+          value: app
+        resources:
+          limits:
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+        # Creates a read-only user for the datadog agent to automatically
+        # collect metrics from this postgres database. Also populate dummy DB
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - sh
+              - -c
+              - |-
+                #!/bin/sh
+                i=0
+                until pg_isready -U "$POSTGRES_USER"; do
+                  echo "Waiting for database to be ready..."
+                  sleep 1s
+                done
+
+                sleep 5s
+
+                psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "create user $MONITORING_USER with password '$MONITORING_PASSWORD'; grant SELECT ON pg_stat_database to $MONITORING_USER;" || echo "monitoring user already exists" >> /poststart.log
+
+                psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
+                CREATE TABLE person (first_name text,last_name text);
+                INSERT INTO person (first_name, last_name) VALUES ('Haissam', 'Kaj');
+                INSERT INTO person (first_name, last_name) VALUES ('Data', 'Dog');
+                INSERT INTO person (first_name, last_name) VALUES ('Leeroy', 'Jenkins');
+                EOSQL
+      restartPolicy: Always
