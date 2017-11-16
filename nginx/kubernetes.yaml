@@ -5,10 +5,12 @@ metadata:
   namespace: backend
   labels:
     app: nginx
+    project: cncf
 spec:
   type: LoadBalancer
   selector:
     app: nginx
+    project: cncf
   ports:
   - protocol: TCP
     port: 80
@@ -21,15 +23,18 @@ metadata:
   namespace: backend
   labels:
     app: nginx
+    project: cncf
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: nginx
+      project: cncf
   template:
     metadata:
       labels:
         app: nginx
+        project: cncf
       annotations:
         service-discovery.datadoghq.com/nginx.check_names: '["nginx"]'
         service-discovery.datadoghq.com/nginx.init_configs: '[{}]'

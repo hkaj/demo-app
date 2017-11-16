@@ -6,10 +6,12 @@ metadata:
   labels:
     app: postgres
     component: db
+    project: cncf
 spec:
   selector:
     app: postgres
     component: db
+    project: cncf
   ports:
   - protocol: TCP
     port: 5432
@@ -28,11 +30,13 @@ spec:
     matchLabels:
       app: postgres
       component: db
+      project: cncf
   template:
     metadata:
       labels:
         app: postgres
         component: db
+        project: cncf
       annotations:
         service-discovery.datadoghq.com/postgres.check_names: '["postgres"]'
         service-discovery.datadoghq.com/postgres.init_configs: '[{}]'

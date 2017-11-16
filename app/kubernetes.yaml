@@ -5,9 +5,11 @@ metadata:
   namespace: backend
   labels:
     app: demo-app
+    project: cncf
 spec:
   selector:
     app: demo-app
+    project: cncf
   ports:
   - protocol: TCP
     port: 80
@@ -31,15 +33,18 @@ metadata:
   namespace: backend
   labels:
     app: demo-app
+    project: cncf
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: demo-app
+      project: cncf
   template:
     metadata:
       labels:
         app: demo-app
+        project: cncf
       annotations:
         service-discovery.datadoghq.com/demo-app.check_names: '["go_expvar"]'
         service-discovery.datadoghq.com/demo-app.init_configs: '[{}]'
