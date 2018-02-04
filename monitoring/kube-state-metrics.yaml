@@ -2,7 +2,6 @@ apiVersion: apps/v1beta2
 kind: Deployment
 metadata:
   name: kube-state-metrics
-  namespace: backend
   labels:
     app: kube-state-metrics
 spec:
