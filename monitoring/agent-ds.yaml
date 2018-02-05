@@ -7,12 +7,21 @@ rules:
   - "/version"  # Used to get apiserver version metadata
   - "/healthz"  # Healthcheck
   verbs: ["get"]
-- apiGroups: [""]
+- apiGroups:
+  - ""
+  - "apps"
+  - "extensions"
+  - "batch"
   resources:
     - "nodes"
     - "namespaces"  #
     - "events"      # Cluster events + kube_service cache invalidation
     - "services"    # kube_service tag
+    - "deployments"
+    - "replicasets"
+    - "daemonsets"
+    - "jobs"
+    - "pods"
   verbs: ["get", "list"]
 - apiGroups: [""]
   resources:
@@ -35,12 +44,13 @@ automountServiceAccountToken: true
 # Easiest way is to bind your user to the cluster-admin role
 # See https://cloud.google.com/container-engine/docs/role-based-access-control#setting_up_role-based_access_control
 kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: datadog
 subjects:
 - kind: ServiceAccount
   name: datadog
+  namespace: default
 roleRef:
   kind: ClusterRole
   name: datadog
@@ -77,7 +87,8 @@ spec:
     spec:
       serviceAccountName: datadog
       containers:
-      - image: datadog/dev-dd-agent:deploy
+      # - image: datadog/dev-dd-agent:deploy
+      - image: datadog/docker-dd-agent:latest
         imagePullPolicy: IfNotPresent
         name: dd-agent
         ports:
@@ -99,6 +110,10 @@ spec:
                  fieldPath: status.hostIP  # Kubernetes >= 1.7
                  # or
                  #fieldPath: spec.nodeName  # Kubernetes < 1.7
+          - name: DD_KUBERNETES_KUBELET_HOST
+            valueFrom:
+              fieldRef:
+                 fieldPath: status.hostIP
         resources:
           requests:
             memory: "128Mi"
