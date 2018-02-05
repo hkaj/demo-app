@@ -68,7 +68,7 @@ spec:
       annotations:
         service-discovery.datadoghq.com/demo-app.check_names: '["go_expvar"]'
         service-discovery.datadoghq.com/demo-app.init_configs: '[{}]'
-        service-discovery.datadoghq.com/demo-app.instances: '[{"expvar_url": "http://%%host%%:8080", "metrics": [{"path": "demo.requests.failures", "type": "counter"}, {"path": "demo.requests.success", "type": "counter"}]}]'
+        service-discovery.datadoghq.com/demo-app.instances: '[{"expvar_url": "http://%%host%%:8080", "metrics": [{"path": "demo.requests.failures", "type": "counter"}, {"path": "demo.requests.success", "type": "counter"}], "tags": ["%%tags%%"]}]'
     spec:
       containers:
       - name: demo-app
@@ -101,7 +101,7 @@ spec:
       annotations:
         service-discovery.datadoghq.com/demo-app.check_names: '["go_expvar"]'
         service-discovery.datadoghq.com/demo-app.init_configs: '[{}]'
-        service-discovery.datadoghq.com/demo-app.instances: '[{"expvar_url": "http://%%host%%:8080", "metrics": [{"path": "demo.requests.failures", "type": "counter"}, {"path": "demo.requests.success", "type": "counter"}]}]'
+        service-discovery.datadoghq.com/demo-app.instances: '[{"expvar_url": "http://%%host%%:8080", "metrics": [{"path": "demo.requests.failures", "type": "counter"}, {"path": "demo.requests.success", "type": "counter"}], "tags": ["%%tags%%"]}]'
     spec:
       containers:
       - name: demo-app
